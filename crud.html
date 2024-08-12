@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>CRUD Management</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <style>
+      .dark-mode { background-color: #1a202c; color: white; }
+      .light-mode { background-color: white; color: black; }
+   </style>
+</head>
+<body class="light-mode">
+   <div class="flex justify-between items-center bg-gray-800 p-4">
+      <div class="text-white font-bold">Aksamedia Interview</div>
+      <div class="relative inline-block text-left">
+         <button id="userButton" class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white ">
+            <span id="usernameDisplay">admin</span>
+            <svg class="-mr-1 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+            </svg>
+         </button>
+         <div id="dropdownMenu" class="hidden origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+            <div class="py-1" role="none">
+               <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onclick="editProfile()">Edit Profile</a>
+               <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem" onclick="logout()">Logout</a>
+            </div>
+         </div>
+      </div>
+   </div>
+
+   <div class="p-6">
+      <div class="mb-4 flex justify-between items-center">
+         <h1 class="text-2xl font-bold">Student Management</h1>
+         <button onclick="openModal()" class="bg-blue-500 text-white px-4 py-2 rounded">Add Student</button>
+      </div>
+
+      <div class="mb-4">
+         <input
+            id="searchInput"
+            type="text"
+            placeholder="Search by NIM, Name, or University"
+            class="shadow appearance-none border border-gray-300 rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            oninput="handleSearch()"
+         >
+      </div>
+
+      <table class="min-w-full bg-white border border-gray-300">
+         <thead>
+            <tr class="w-full bg-gray-100 text-left text-gray-700">
+               <th class="py-2 px-4 border-b">NIM</th>
+               <th class="py-2 px-4 border-b">Name</th>
+               <th class="py-2 px-4 border-b">University</th>
+               <th class="py-2 px-4 border-b">Actions</th>
+            </tr>
+         </thead>
+         <tbody id="studentTableBody">
+         </tbody>
+      </table>
+
+      <div id="pagination" class="mt-4 flex justify-between items-center">
+         <button id="prevPage" class="bg-blue-500 text-white px-4 py-2 rounded" onclick="changePage(currentPage - 1)" disabled>Previous</button>
+         <span id="pageInfo" class="text-gray-700"></span>
+         <button id="nextPage" class="bg-blue-500 text-white px-4 py-2 rounded" onclick="changePage(currentPage + 1)">Next</button>
+      </div>
+   </div>
+
+   <div id="modal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden">
+      <div class="bg-white p-6 rounded shadow-lg w-96">
+         <h2 id="modalTitle" class="text-lg font-bold mb-4">Add Student</h2>
+         <form id="studentForm">
+            <input type="hidden" id="studentId">
+            <div class="mb-4">
+               <label class="block text-gray-700 text-sm font-semibold mb-2" for="nim">NIM</label>
+               <input id="nim" type="text" class="shadow appearance-none border border-gray-300 rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter student NIM">
+            </div>
+            <div class="mb-4">
+               <label class="block text-gray-700 text-sm font-semibold mb-2" for="name">Name</label>
+               <input id="name" type="text" class="shadow appearance-none border border-gray-300 rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter student name">
+            </div>
+            <div class="mb-4">
+               <label class="block text-gray-700 text-sm font-semibold mb-2" for="univ">University</label>
+               <input id="univ" type="text" class="shadow appearance-none border border-gray-300 rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter student university">
+            </div>
+            <div class="flex justify-between">
+               <button type="button" onclick="closeModal()" class="bg-gray-500 text-white px-4 py-2 rounded">Cancel</button>
+               <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Save</button>
+            </div>
+         </form>
+      </div>
+   </div>
+
+   <script>
+      let currentPage = 1;
+      const rowsPerPage = 2;
+
+      document.addEventListener('DOMContentLoaded', () => {
+         authenticateUser();
+         loadStudents();
+
+         document.getElementById('studentForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            saveStudent();
+         });
+         document.getElementById('userButton').addEventListener('click', () => {
+            const dropdownMenu = document.getElementById('dropdownMenu');
+            dropdownMenu.classList.toggle('hidden');
+         });
+         document.addEventListener('click', (event) => {
+            const isClickInside = document.getElementById('userButton').contains(event.target);
+            const dropdownMenu = document.getElementById('dropdownMenu');
+            if (!isClickInside && !dropdownMenu.contains(event.target)) {
+               dropdownMenu.classList.add('hidden');
+            }
+         });
+
+         const urlParams = new URLSearchParams(window.location.search);
+         const searchQuery = urlParams.get('search') || '';
+         document.getElementById('searchInput').value = searchQuery;
+      });
+
+      function authenticateUser() {
+         const username = localStorage.getItem('username');
+         if (!username) {
+            window.location.href = 'login.html';
+         } else {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && user.fullName) {
+               document.getElementById('usernameDisplay').innerText = user.fullName;
+            }
+         }
+      }
+
+      function handleSearch() {
+         const query = document.getElementById('searchInput').value;
+         const urlParams = new URLSearchParams(window.location.search);
+         if (query) {
+            urlParams.set('search', query);
+         } else {
+            urlParams.delete('search');
+         }
+         window.history.replaceState({}, '', `${window.location.pathname}?${urlParams}`);
+         loadStudents();
+      }
+
+      function loadStudents() {
+         const students = JSON.parse(localStorage.getItem('students')) || [];
+         const query = new URLSearchParams(window.location.search).get('search') || '';
+         const filteredStudents = students.filter(student =>
+            student.nim.includes(query) || student.name.includes(query) || student.univ.includes(query)
+         );
+
+         const start = (currentPage - 1) * rowsPerPage;
+         const end = start + rowsPerPage;
+         const paginatedStudents = filteredStudents.slice(start, end);
+
+         const tableBody = document.getElementById('studentTableBody');
+         tableBody.innerHTML = paginatedStudents.map(student =>
+            `<tr>
+               <td class="py-2 px-4 border-b">${student.nim}</td>
+               <td class="py-2 px-4 border-b">${student.name}</td>
+               <td class="py-2 px-4 border-b">${student.univ}</td>
+               <td class="py-2 px-4 border-b">
+                  <button onclick="editStudent('${student.id}')" class="bg-yellow-500 text-white px-2 py-1 rounded">Edit</button>
+                  <button onclick="deleteStudent('${student.id}')" class="bg-red-500 text-white px-2 py-1 rounded">Delete</button>
+               </td>
+            </tr>`
+         ).join('');
+
+         updatePagination(filteredStudents.length);
+      }
+
+      function updatePagination(totalRows) {
+         const totalPages = Math.ceil(totalRows / rowsPerPage);
+         document.getElementById('prevPage').disabled = currentPage === 1;
+         document.getElementById('nextPage').disabled = currentPage === totalPages;
+         document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
+      }
+
+      function changePage(page) {
+         currentPage = page;
+         loadStudents();
+      }
+
+      function openModal() {
+         document.getElementById('modal').classList.remove('hidden');
+         document.getElementById('modalTitle').innerText = 'Add Student';
+         document.getElementById('studentForm').reset();
+         document.getElementById('studentId').value = '';
+      }
+
+      function closeModal() {
+         document.getElementById('modal').classList.add('hidden');
+      }
+
+      function saveStudent() {
+         const id = document.getElementById('studentId').value;
+         const nim = document.getElementById('nim').value;
+         const name = document.getElementById('name').value;
+         const univ = document.getElementById('univ').value;
+
+         const students = JSON.parse(localStorage.getItem('students')) || [];
+         if (id) {
+            const index = students.findIndex(student => student.id === id);
+            if (index !== -1) {
+               students[index] = { id, nim, name, univ };
+            }
+         } else {
+            students.push({ id: Date.now().toString(), nim, name, univ });
+         }
+
+         localStorage.setItem('students', JSON.stringify(students));
+         closeModal();
+         loadStudents();
+      }
+
+      function editStudent(id) {
+         const students = JSON.parse(localStorage.getItem('students')) || [];
+         const student = students.find(student => student.id === id);
+         if (student) {
+            document.getElementById('studentId').value = student.id;
+            document.getElementById('nim').value = student.nim;
+            document.getElementById('name').value = student.name;
+            document.getElementById('univ').value = student.univ;
+            document.getElementById('modalTitle').innerText = 'Edit Student';
+            document.getElementById('modal').classList.remove('hidden');
+         }
+      }
+
+      function deleteStudent(id) {
+         const students = JSON.parse(localStorage.getItem('students')) || [];
+         const filteredStudents = students.filter(student => student.id !== id);
+         localStorage.setItem('students', JSON.stringify(filteredStudents));
+         loadStudents();
+      }
+   </script>
+</body>
+</html>
